@@ -1,0 +1,115 @@
+import java.io.*;
+import java.util.*;
+
+// Reservation (Serializable)
+class Reservation implements Serializable {
+    private String guestName;
+    private String roomType;
+    private String roomId;
+
+    public Reservation(String guestName, String roomType, String roomId) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+        this.roomId = roomId;
+    }
+
+    public String toString() {
+        return guestName + " -> " + roomType + " (" + roomId + ")";
+    }
+}
+
+// Inventory (Serializable)
+class RoomInventory implements Serializable {
+    private Map<String, Integer> inventory = new HashMap<>();
+
+    public RoomInventory() {
+        inventory.put("Single Room", 2);
+        inventory.put("Double Room", 1);
+    }
+
+    public Map<String, Integer> getInventory() {
+        return inventory;
+    }
+}
+
+// Wrapper class for full system state
+class SystemState implements Serializable {
+    List<Reservation> history;
+    Map<String, Integer> inventory;
+
+    public SystemState(List<Reservation> history, Map<String, Integer> inventory) {
+        this.history = history;
+        this.inventory = inventory;
+    }
+}
+
+// Persistence Service
+class PersistenceService {
+
+    private static final String FILE_NAME = "system_state.ser";
+
+    // Save state
+    public void save(SystemState state) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            out.writeObject(state);
+            System.out.println("System state saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving state: " + e.getMessage());
+        }
+    }
+
+    // Load state
+    public SystemState load() {
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            SystemState state = (SystemState) in.readObject();
+            System.out.println("System state loaded successfully.");
+            return state;
+        } catch (FileNotFoundException e) {
+            System.out.println("No previous state found. Starting fresh.");
+        } catch (Exception e) {
+            System.out.println("Error loading state. Starting with safe defaults.");
+        }
+        return null;
+    }
+}
+
+// Main App
+public class PersistenceApp {
+    public static void main(String[] args) {
+
+        PersistenceService service = new PersistenceService();
+
+        // Try loading previous state
+        SystemState state = service.load();
+
+        List<Reservation> history;
+        Map<String, Integer> inventory;
+
+        if (state != null) {
+            history = state.history;
+            inventory = state.inventory;
+        } else {
+            history = new ArrayList<>();
+            inventory = new HashMap<>();
+            inventory.put("Single Room", 2);
+        }
+
+        // Simulate booking
+        history.add(new Reservation("Alice", "Single Room", "SINGLEROOM-1"));
+        inventory.put("Single Room", inventory.get("Single Room") - 1);
+
+        // Display current state
+        System.out.println("\nCurrent Bookings:");
+        for (Reservation r : history) {
+            System.out.println(r);
+        }
+
+        System.out.println("\nInventory:");
+        for (Map.Entry<String, Integer> e : inventory.entrySet()) {
+            System.out.println(e.getKey() + " -> " + e.getValue());
+        }
+
+        // Save state before shutdown
+        service.save(new SystemState(history, inventory));
+    }
+}
