@@ -1,0 +1,112 @@
+import java.util.*;
+
+// Reservation
+class Reservation {
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
+}
+
+// Shared Inventory (Thread-Safe)
+class RoomInventory {
+    private Map<String, Integer> inventory = new HashMap<>();
+
+    public RoomInventory() {
+        inventory.put("Single Room", 2);
+    }
+
+    // Critical Section
+    public synchronized boolean allocate(String type) {
+        int available = inventory.getOrDefault(type, 0);
+
+        if (available > 0) {
+            inventory.put(type, available - 1);
+            return true;
+        }
+        return false;
+    }
+}
+
+// Shared Queue
+class BookingQueue {
+    private Queue<Reservation> queue = new LinkedList<>();
+
+    public synchronized void add(Reservation r) {
+        queue.offer(r);
+    }
+
+    public synchronized Reservation get() {
+        return queue.poll();
+    }
+}
+
+// Worker Thread
+class BookingProcessor extends Thread {
+
+    private BookingQueue queue;
+    private RoomInventory inventory;
+
+    public BookingProcessor(BookingQueue queue, RoomInventory inventory) {
+        this.queue = queue;
+        this.inventory = inventory;
+    }
+
+    public void run() {
+        while (true) {
+
+            Reservation r;
+
+            synchronized (queue) {
+                r = queue.get();
+            }
+
+            if (r == null) break;
+
+            boolean success;
+
+            synchronized (inventory) {
+                success = inventory.allocate(r.getRoomType());
+            }
+
+            if (success) {
+                System.out.println(
+                    Thread.currentThread().getName() +
+                    " booked for " + r.getGuestName()
+                );
+            } else {
+                System.out.println(
+                    Thread.currentThread().getName() +
+                    " failed (no rooms) for " + r.getGuestName()
+                );
+            }
+        }
+    }
+}
+
+// Main App
+public class ConcurrentApp {
+    public static void main(String[] args) {
+
+        BookingQueue queue = new BookingQueue();
+        RoomInventory inventory = new RoomInventory();
+
+        // Simulate multiple guests
+        queue.add(new Reservation("Alice", "Single Room"));
+        queue.add(new Reservation("Bob", "Single Room"));
+        queue.add(new Reservation("Charlie", "Single Room"));
+
+        // Multiple threads (concurrent processing)
+        BookingProcessor t1 = new BookingProcessor(queue, inventory);
+        BookingProcessor t2 = new BookingProcessor(queue, inventory);
+
+        t1.start();
+        t2.start();
+    }
+}
