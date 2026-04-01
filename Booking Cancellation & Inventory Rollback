@@ -1,0 +1,107 @@
+import java.util.*;
+
+// Reservation with ID
+class Reservation {
+    private String guestName;
+    private String roomType;
+    private String roomId;
+
+    public Reservation(String guestName, String roomType, String roomId) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+        this.roomId = roomId;
+    }
+
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
+    public String getRoomId() { return roomId; }
+}
+
+// Inventory
+class RoomInventory {
+    private Map<String, Integer> inventory = new HashMap<>();
+
+    public RoomInventory() {
+        inventory.put("Single Room", 1);
+        inventory.put("Double Room", 1);
+    }
+
+    public void increment(String type) {
+        inventory.put(type, inventory.get(type) + 1);
+    }
+
+    public void display() {
+        System.out.println("\nInventory State:");
+        for (Map.Entry<String, Integer> e : inventory.entrySet()) {
+            System.out.println(e.getKey() + " -> " + e.getValue());
+        }
+    }
+}
+
+// Booking History
+class BookingHistory {
+    private List<Reservation> history = new ArrayList<>();
+
+    public void add(Reservation r) {
+        history.add(r);
+    }
+
+    public boolean remove(String roomId) {
+        return history.removeIf(r -> r.getRoomId().equals(roomId));
+    }
+
+    public boolean exists(String roomId) {
+        return history.stream().anyMatch(r -> r.getRoomId().equals(roomId));
+    }
+}
+
+// Cancellation Service
+class CancellationService {
+
+    private Stack<String> rollbackStack = new Stack<>();
+
+    public void cancel(String roomId, BookingHistory history, RoomInventory inventory) {
+
+        if (!history.exists(roomId)) {
+            System.out.println("Cancellation failed: Reservation not found.\n");
+            return;
+        }
+
+        rollbackStack.push(roomId);
+
+        history.remove(roomId);
+
+        String roomType = extractRoomType(roomId);
+        inventory.increment(roomType);
+
+        System.out.println("Cancellation successful for Room ID: " + roomId + "\n");
+    }
+
+    private String extractRoomType(String roomId) {
+        if (roomId.startsWith("SINGLEROOM")) return "Single Room";
+        if (roomId.startsWith("DOUBLEROOM")) return "Double Room";
+        return "Unknown";
+    }
+}
+
+// Main App
+public class CancellationApp {
+    public static void main(String[] args) {
+
+        RoomInventory inventory = new RoomInventory();
+        BookingHistory history = new BookingHistory();
+        CancellationService service = new CancellationService();
+
+        Reservation r1 = new Reservation("Alice", "Single Room", "SINGLEROOM-1");
+
+        history.add(r1);
+
+        inventory.display();
+
+        service.cancel("SINGLEROOM-1", history, inventory);
+
+        inventory.display();
+
+        service.cancel("SINGLEROOM-1", history, inventory);
+    }
+}
